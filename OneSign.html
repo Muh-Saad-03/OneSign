@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <meta charset="utf-8" /> 
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OneSign • Funeral Booking & Paperwork (HTML)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config = { theme: { extend: { colors: { brand: { 600: '#4f46e5' }}}}};</script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
+    .card { box-shadow: 0 10px 30px rgba(2,6,23,.08); }
+    .hidden-step { display: none; }
+    canvas { touch-action: none; }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+  <header class="bg-white sticky top-0 z-10 border-b">
+    <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="font-extrabold tracking-tight text-xl">OneSign</div>
+    </div>
+  </header>
+  <main class="max-w-5xl mx-auto px-4 py-6">
+    <!-- Create a progress bar to show which step. Round end, color purple, and 0.2 make it barely visible.  -->
+    <div class="grid grid-cols-5 gap-2 mb-6" id="progress">
+      <div class="h-2 rounded bg-brand-600 opacity-20" data-step="1"></div>
+      <div class="h-2 rounded bg-brand-600 opacity-20" data-step="2"></div>
+      <div class="h-2 rounded bg-brand-600 opacity-20" data-step="3"></div>
+      <div class="h-2 rounded bg-brand-600 opacity-20" data-step="4"></div>
+      <div class="h-2 rounded bg-brand-600 opacity-20" data-step="5"></div>
+    </div>
+    
+    <!-- Create First page. Input information: First Name, Last Name, 
+     DOB, DOD, POD, Religion, funeral type, and Notes. -->
+    <section id="step1" class="card bg-white rounded-2xl p-6 space-y-4">
+      <h2 class="text-xl font-semibold">Page 1 — Deceased Information</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <input id="decFirst" class="border rounded p-2" placeholder="First name"/>
+        <input id="decLast" class="border rounded p-2" placeholder="Last name"/>
+        <label class="text-sm">Date of birth <input id="decDob" type="date" class="border rounded p-2 w-full"/></label>
+        <label class="text-sm">Date of death <input id="decDod" type="date" class="border rounded p-2 w-full"/></label>
+        <input id="decPlace" class="border rounded p-2 md:col-span-2" placeholder="Place of death (hospital/home address)"/>
+        <select id="decReligion" class="border rounded p-2"><option>Muslim</option><option>Christian</option><option>Jewish</option><option>Hindu</option><option>Buddhist</option><option>Secular</option></select>
+        <select id="decService" class="border rounded p-2"><option>Burial</option><option>Cremation</option><option>Other</option></select>
+        <textarea id="decNotes" class="border rounded p-2 md:col-span-2" placeholder="Notes (optional)"></textarea>
+      </div>
+      <!-- Create a button that takes you to next page. -->
+      <div class="flex justify-end gap-2">
+        <button class="px-4 py-2 bg-brand-600 text-white rounded" onclick="nextStep(1)">Next</button>
+      </div>
+    </section>
+
+    <!-- Create the second page. Input information: Family contact, relation,
+     email, phone, and address. -->
+    <section id="step2" class="card bg-white rounded-2xl p-6 space-y-4 hidden-step">
+      <h2 class="text-xl font-semibold">Page 2 — Family Information</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <input id="famName" class="border rounded p-2" placeholder="Primary contact name"/>
+        <input id="famRelation" class="border rounded p-2" placeholder="Relation (e.g., Son, Spouse)"/>
+        <input id="famEmail" class="border rounded p-2" placeholder="Email"/>
+        <input id="famPhone" class="border rounded p-2" placeholder="Phone"/>
+        <input id="famAddr" class="border rounded p-2 md:col-span-2" placeholder="Address"/>
+        <!-- Create a check box for consent.-->
+        <label class="md:col-span-2 text-sm flex items-center gap-2"><input id="famConsent" type="checkbox"/> I am authorized to make arrangements and attest that information is accurate.</label>
+      </div>
+      <!-- Create a back and next button. -->
+      <div class="flex justify-between gap-2">
+        <button class="px-4 py-2 border rounded" onclick="prevStep(2)">Back</button>
+        <button class="px-4 py-2 bg-brand-600 text-white rounded" onclick="nextStep(2)">Next</button>
+      </div>
+    </section>
+
+    <!-- Create a Cemetery map, and booking slot. -->
+    <section id="step3" class="card bg-white rounded-2xl p-6 space-y-4 hidden-step">
+      <h2 class="text-xl font-semibold">Page 3 — Cemetery Map & Calendar</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div>
+          <input id="cemSearch" class="border rounded p-2 w-full" placeholder="Search cemeteries" oninput="renderCemeteries()"/>
+          <div id="cemList" class="mt-3 space-y-2 max-h-72 overflow-auto"></div>
+        </div>
+        <div class="md:col-span-2">
+          <div id="slotInfo" class="text-sm text-slate-600">Select a cemetery to view available times.</div>
+          <div id="slotList" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-80 overflow-auto mt-2"></div>
+        </div>
+      </div>
+            <!-- Create a back and next button. -->
+      <div class="flex justify-between gap-2">
+              <!-- Create a back and next button. -->
+        <button class="px-4 py-2 border rounded" onclick="prevStep(3)">Back</button>
+        <button class="px-4 py-2 bg-brand-600 text-white rounded" onclick="nextStep(3)">Next</button>
+      </div>
+    </section>
+
+    <!-- Create the last page. Add ons, Total, payment plan, signature and create paper work. -->
+    <section id="step4" class="card bg-white rounded-2xl p-6 space-y-4 hidden-step">
+      <h2 class="text-xl font-semibold">Page 4 — Cost Calculator & Payment Plan</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div>
+          <div class="p-3 border rounded mb-3">
+            <div class="font-medium">Base package</div>
+            <div id="baseName" class="text-sm text-slate-600">Select a cemetery on Page 3</div>
+            <div class="text-lg" id="basePrice">$0.00</div>
+          </div>
+          <div class="font-medium mb-2">Add-ons</div>
+          <div id="addons" class="space-y-2"></div>
+        </div>
+        <div>
+          <div class="p-3 border rounded space-y-2">
+            <div class="flex justify-between"><span>Subtotal</span><span id="subtotal">$0.00</span></div>
+            <div class="flex justify-between"><span>Tax & fees</span><span id="tax">$0.00</span></div>
+            <div class="flex justify-between font-semibold text-lg"><span>Total</span><span id="total">$0.00</span></div>
+          </div>
+          <div class="mt-4 p-3 border rounded space-y-2">
+            <div class="font-medium">Payment plan</div>
+            <div class="flex flex-wrap gap-2">
+              <button class="px-3 py-1 rounded border" data-plan="full" onclick="setPlan(this)">Pay in full</button>
+              <button class="px-3 py-1 rounded border" data-plan="3" onclick="setPlan(this)">3 months</button>
+              <button class="px-3 py-1 rounded border" data-plan="6" onclick="setPlan(this)">6 months</button>
+              <button class="px-3 py-1 rounded border" data-plan="12" onclick="setPlan(this)">12 months</button>
+            </div>
+            <div class="text-sm flex items-center gap-2 mt-2">
+              <label>APR%</label>
+              <input id="apr" type="number" class="border rounded p-1 w-24" value="0" oninput="renderTotals()"/>
+            </div>
+            <div class="mt-2 text-sm">
+              <div class="font-medium mb-1">Schedule</div>
+              <ul id="schedule" class="list-disc pl-5 space-y-1"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 p-4 border rounded space-y-3">
+        <div class="font-medium">Review & Sign</div>
+        <input id="signerName" class="border rounded p-2" placeholder="Signer full name"/>
+        <div class="space-y-2">
+          <div class="text-sm text-slate-600">Signature (draw below)</div>
+          <canvas id="sig" width="520" height="160" class="border rounded bg-white"></canvas>
+          <div class="flex gap-2">
+            <button class="px-3 py-1 rounded border" onclick="clearSig()">Clear</button>
+            <span id="sigStatus" class="text-xs text-green-700 hidden">Signature captured</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between gap-2">
+        <button class="px-4 py-2 border rounded" onclick="prevStep(4)">Back</button>
+        <button class="px-4 py-2 bg-brand-600 text-white rounded" onclick="generatePack()">Generate Paperwork Pack</button>
+      </div>
+    </section>
+<!-- Generate the work and shows successfull message. -->
+    <section id="step5" class="card bg-white rounded-2xl p-6 space-y-4 hidden-step">
+      <h2 class="text-xl font-semibold">Paperwork Pack Ready</h2>
+      <div class="space-y-3">
+        <div class="text-sm text-slate-700">Your signed paperwork pack has been generated.</div>
+        <div class="text-xs text-slate-600">Hash (SHA-256): <span id="packHash" class="font-mono break-all"></span></div>
+        <a id="downloadLink" class="inline-block px-4 py-2 bg-brand-600 text-white rounded" href="#" download>Download Pack</a>
+        <div class="text-xs text-slate-500">If your browser blocks downloads, right‑click the button and choose “Save link as…”.</div>
+      </div>
+      <div class="flex justify-between pt-2">
+        <button class="px-4 py-2 border rounded" onclick="restart()">Start Over</button>
+      </div>
+    </section>
+
+  </main>
+  <footer class="text-center text-xs text-slate-500 py-8">© <span id="year"></span> OneSign • Plain HTML demo</footer>
+<script>
+  const $ = (q) => document.querySelector(q);
+  const $$ = (q) => Array.from(document.querySelectorAll(q));
+  let currentStep = 1;
+
+
+
+
+
+
+
+
+
+
+
+
+  // Holds the data for page 3. Displays the address and cemetery.
+  const CEMETERIES = [
+    { id: 'cem1', name: 'Green Meadow Cemetery', address: '100 Peace Ave, Brooklyn, NY', rites: ['Muslim','Christian','Jewish','Secular'], basePrice: 2400 },
+    { id: 'cem2', name: 'Hudson Rest Gardens', address: '22 River Rd, Jersey City, NJ', rites: ['Christian','Secular'], basePrice: 2100 },
+    { id: 'cem3', name: 'Everlight Memorial Park', address: '12 Sunrise Blvd, Queens, NY', rites: ['Muslim','Jewish','Secular'], basePrice: 2600 }
+  ];
+  // Page 2  Calculator add ons.
+  const ADDONS = [
+    { code: 'transport_basic', label: 'Transport (within city)', price: 250 },
+    { code: 'transport_extended', label: 'Transport (extended radius)', price: 500 },
+    { code: 'flowers', label: 'Floral arrangement', price: 180 },
+    { code: 'clergy', label: 'Clergy/Officiant honorarium', price: 200 },
+    { code: 'permits', label: 'Permits & admin fees', price: 120 },
+    { code: 'viewing', label: 'Viewing room (2 hours)', price: 350 }
+  ];
+  // Stores data for what the user has selected
+  let selectedCemetery = null;
+  let selectedSlot = null;
+  let pickedAddons = new Set();
+  let plan = { type: 'full', apr: 0 };
+
+  function showStep(n) {
+    currentStep = n;
+    for (let i=1;i<=5;i++) {
+      const sec = document.getElementById('step'+i);
+      if (!sec) continue;
+      sec.classList.toggle('hidden-step', i!==n);
+    }
+    // progress
+    $$('#progress [data-step]').forEach(el => {
+      const s = Number(el.getAttribute('data-step'));
+      el.style.opacity = (s<=n) ? '1' : '0.2';
+    });
+  }
+
+  function validateStep(n){
+    if (n===1){
+      const f = $('#decFirst').value.trim();
+      const l = $('#decLast').value.trim();
+      const dob = $('#decDob').value;
+      const dod = $('#decDod').value;
+      if (!f||!l||!dob||!dod) return false;
+      if (new Date(dod) < new Date(dob)) return false;
+    }
+    if (n===2){
+      if (!$('#famName').value.trim()) return false;
+      if (!$('#famRelation').value.trim()) return false;
+      if (!$('#famEmail').value.trim()) return false;
+      if (!$('#famPhone').value.trim()) return false;
+      if (!$('#famConsent').checked) return false;
+    }
+    if (n===3){
+      if (!selectedCemetery || !selectedSlot) return false;
+    }
+    return true;
+  }
+
+  function nextStep(from){
+    if (!validateStep(from)) { alert('Please complete required fields.'); return; }
+    showStep(from+1);
+    if (from===3) renderTotals();
+  }
+  function prevStep(from){ showStep(from-1); }
+
+  // Cemetery list & slots
+  function renderCemeteries(){
+    const q = $('#cemSearch').value.trim().toLowerCase();
+    const list = $('#cemList');
+    list.innerHTML='';
+    const rows = CEMETERIES.filter(c => !q || c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q));
+    rows.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'w-full text-left border rounded p-2 hover:border-brand-600';
+      btn.innerHTML = `<div class="font-medium">${c.name}</div>
+      <div class="text-xs text-slate-600">${c.address}</div>
+      <div class="text-xs text-slate-600">Rites: ${c.rites.join(', ')}</div>
+      <div class="text-xs text-slate-800 mt-1">Base: $${c.basePrice.toFixed(2)}</div>`;
+      btn.onclick = ()=> { selectedCemetery = c; selectedSlot=null; renderSlots(); updateBase(); };
+      list.appendChild(btn);
+    });
+  }
+
+  function generateSlots(){
+    const out=[]; const now = new Date();
+    for(let d=0; d<7; d++){
+      for(let h=9; h<=17; h+=2){
+        const dt = new Date(now);
+        dt.setDate(now.getDate()+d);
+        dt.setHours(h,0,0,0);
+        out.push({ iso: dt.toISOString(), label: dt.toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) });
+      }
+    }
+    return out;
+  }
+  const SLOTS = generateSlots();
+
+  function renderSlots(){
+    const list = $('#slotList');
+    const info = $('#slotInfo');
+    list.innerHTML='';
+    if (!selectedCemetery){ info.textContent='Select a cemetery to view available times.'; return; }
+    info.textContent = `Available times for ${selectedCemetery.name}`;
+    SLOTS.forEach(s=>{
+      const b = document.createElement('button');
+      b.className = 'border rounded p-2 text-left hover:bg-slate-50';
+      b.textContent = s.label;
+      b.onclick = () => { selectedSlot = s.iso; $$('#slotList button').forEach(x=>x.classList.remove('bg-brand-600','text-white')); b.classList.add('bg-brand-600','text-white'); };
+      list.appendChild(b);
+    });
+  }
+
+  function updateBase(){
+    $('#baseName').textContent = selectedCemetery ? selectedCemetery.name : 'Select a cemetery on Page 3';
+    $('#basePrice').textContent = selectedCemetery ? `$${selectedCemetery.basePrice.toFixed(2)}` : '$0.00';
+  }
+
+  // Addons & totals
+  function renderAddons(){
+    const c = $('#addons'); c.innerHTML='';
+    ADDONS.forEach(a=>{
+      const label = document.createElement('label');
+      label.className = 'flex items-center gap-2';
+      const input = document.createElement('input');
+      input.type='checkbox';
+      input.onchange = (e)=>{ if(e.target.checked) pickedAddons.add(a.code); else pickedAddons.delete(a.code); renderTotals(); };
+      label.appendChild(input);
+      const span = document.createElement('span');
+      span.textContent = `${a.label} — $${a.price.toFixed(2)}`;
+      label.appendChild(span);
+      c.appendChild(label);
+    });
+  }
+
+  function currency(n){ return n.toLocaleString(undefined,{style:'currency', currency:'USD'}); }
+
+  function setPlan(btn){
+    plan.type = btn.getAttribute('data-plan');
+    $$('#step4 [data-plan]').forEach(x=>x.classList.remove('bg-brand-600','text-white'));
+    btn.classList.add('bg-brand-600','text-white');
+    renderTotals();
+  }
+
+  function renderTotals(){
+    const base = selectedCemetery? selectedCemetery.basePrice : 0;
+    const addonsTotal = Array.from(pickedAddons).map(code => (ADDONS.find(a=>a.code===code)||{price:0}).price).reduce((a,b)=>a+b,0);
+    const subtotal = base + addonsTotal;
+    const tax = Math.round(subtotal * 0.08875 * 100) / 100;
+    const grand = Math.round((subtotal + tax) * 100) / 100;
+
+    $('#subtotal').textContent = currency(subtotal);
+    $('#tax').textContent = currency(tax);
+    $('#total').textContent = currency(grand);
+
+    // schedule
+    const n = (plan.type==='full') ? 1 : parseInt(plan.type,10);
+    const apr = Number($('#apr').value||0);
+    const ul = $('#schedule'); ul.innerHTML='';
+    if (n===1){
+      ul.innerHTML = `<li>Payment 1: ${currency(grand)}</li>`;
+      return;
+    }
+    if (!apr){
+      const basePay = Math.floor((grand / n) * 100) / 100;
+      const arr = Array.from({length:n}, (_,i)=> basePay);
+      const diff = Math.round((grand - basePay*n)*100)/100;
+      arr[n-1] = Math.round((arr[n-1]+diff)*100)/100;
+      arr.forEach((amt,i)=>{ const li=document.createElement('li'); li.textContent = `Payment ${i+1}: ${currency(amt)}`; ul.appendChild(li); });
+    } else {
+      const r = apr/12/100;
+      const pay = Math.round((grand * (r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1))*100)/100;
+      for (let i=0;i<n;i++){ const li=document.createElement('li'); li.textContent = `Payment ${i+1}: ${currency(pay)}`; ul.appendChild(li);}    }
+  }
+
+  // Signature pad
+  const sig = document.getElementById('sig');
+  const ctx = sig.getContext('2d');
+  ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+  let drawing=false; let last=null;
+  function getXY(e){
+    const rect = sig.getBoundingClientRect();
+    if (e.touches){ const t = e.touches[0]; return {x:t.clientX-rect.left, y:t.clientY-rect.top}; }
+    return {x:e.clientX-rect.left, y:e.clientY-rect.top};
+  }
+  function start(e){ drawing=true; last=getXY(e); }
+  function move(e){ if(!drawing) return; const p=getXY(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; $('#sigStatus').classList.remove('hidden'); }
+  function end(){ drawing=false; last=null; }
+  sig.addEventListener('mousedown', start); sig.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+  sig.addEventListener('touchstart', start, {passive:true}); sig.addEventListener('touchmove', move, {passive:true}); window.addEventListener('touchend', end);
+  function clearSig(){ ctx.clearRect(0,0,sig.width,sig.height); $('#sigStatus').classList.add('hidden'); }
+  async function sha256(text){
+    const enc = new TextEncoder();
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(text));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  async function generatePack(){
+    const signer = $('#signerName').value.trim();
+    if (!signer){ alert('Enter signer name.'); return; }
+    // ensure signature captured (non-empty)
+    const blank = document.createElement('canvas'); blank.width=520; blank.height=160; const blankData=blank.toDataURL();
+    const sigData = sig.toDataURL('image/png');
+    if (sigData === blankData){ alert('Please provide a signature.'); return; }
+
+    const snapshot = {
+      deceased: {
+        firstName: $('#decFirst').value.trim(), lastName: $('#decLast').value.trim(),
+        dob: $('#decDob').value, dod: $('#decDod').value,
+        placeOfDeath: $('#decPlace').value.trim(), religion: $('#decReligion').value, serviceType: $('#decService').value, notes: $('#decNotes').value
+      },
+      family: { name: $('#famName').value.trim(), relation: $('#famRelation').value.trim(), email: $('#famEmail').value.trim(), phone: $('#famPhone').value.trim(), address: $('#famAddr').value.trim() },
+      booking: { cemetery: selectedCemetery, slotIso: selectedSlot },
+      costs: computeCosts(),
+      signer: { name: signer, at: new Date().toISOString() }
+    };
+
+    const text = JSON.stringify(snapshot, null, 2);
+    const hash = await sha256(text);
+    $('#packHash').textContent = hash;
+
+    // Build PDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+
+    // Cover
+    doc.setFontSize(18); doc.text('OneSign — Funeral Paperwork Pack', 40, 60);
+    doc.setFontSize(11); doc.text(`Signer: ${signer}`, 40, 80);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 98);
+    doc.text(`Integrity (SHA-256): ${hash}`, 40, 116, { maxWidth: 520 });
+
+    // Summary page
+    doc.addPage();
+    doc.setFontSize(14); doc.text('Summary', 40, 60);
+    doc.setFontSize(10);
+    const summary = [
+      ['Deceased', `${snapshot.deceased.firstName} ${snapshot.deceased.lastName}`],
+      ['DOB', snapshot.deceased.dob], ['DOD', snapshot.deceased.dod],
+      ['Place of death', snapshot.deceased.placeOfDeath], ['Rites', snapshot.deceased.religion], ['Service', snapshot.deceased.serviceType],
+      ['Primary contact', `${snapshot.family.name} (${snapshot.family.relation})`],
+      ['Email/Phone', `${snapshot.family.email} / ${snapshot.family.phone}`],
+      ['Cemetery', snapshot.booking.cemetery ? snapshot.booking.cemetery.name : '—'],
+      ['Slot', snapshot.booking.slotIso ? new Date(snapshot.booking.slotIso).toLocaleString() : '—']
+    ];
+    if (doc.autoTable) {
+      doc.autoTable({ head: [['Field','Value']], body: summary, startY: 80, theme: 'grid', styles: { fontSize: 9 }});
+    } else {
+      // fallback text rendering
+      let y=80; summary.forEach(([k,v])=>{ doc.text(`${k}: ${v}`, 40, y); y+=14; });
+    }
+
+    // Costs
+    doc.addPage();
+    doc.setFontSize(14); doc.text('Costs & Payment Plan', 40, 60);
+    const body = [];
+    body.push(['Base', currency(snapshot.costs.base)]);
+    snapshot.costs.addons.forEach(a=> body.push([a.label, currency(a.price)]));
+    body.push(['Tax', currency(snapshot.costs.tax)]);
+    body.push(['Total', currency(snapshot.costs.total)]);
+    if (doc.autoTable) {
+      doc.autoTable({ head: [['Item','Amount']], body, startY: 80, theme:'grid', styles:{ fontSize: 9 }});
+      const sched = snapshot.costs.schedule.map((p,i)=> [`Payment ${i+1}`, currency(p)]);
+      doc.autoTable({ head: [['Schedule','Amount']], body: sched, startY: doc.lastAutoTable.finalY + 16, theme:'grid', styles:{ fontSize: 9 }});
+    }
+
+    // Signature page
+    doc.addPage();
+    doc.setFontSize(14); doc.text('Attestation & Signature', 40, 60);
+    doc.setFontSize(10); doc.text('I certify that I am authorized to make these arrangements and the information provided is accurate.', 40, 80, { maxWidth: 520 });
+    doc.setFontSize(11); doc.text(`Signed by: ${signer}`, 40, 110);
+    // draw signature image
+    doc.addImage(sigData, 'PNG', 40, 130, 360, 110);
+    doc.setFontSize(8); doc.text(`IP/Device: (local demo) • Timestamp: ${new Date().toISOString()}`, 40, 258);
+
+    // Download
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    const a = document.getElementById('downloadLink');
+    a.href = url; a.download = 'OneSign_Paperwork_Pack.pdf';
+
+    showStep(5);
+  }
+
+  function computeCosts(){
+    const base = selectedCemetery? selectedCemetery.basePrice : 0;
+    const addonList = Array.from(pickedAddons).map(code => ADDONS.find(a=>a.code===code)).filter(Boolean);
+    const addonsTotal = addonList.reduce((s,a)=> s + a.price, 0);
+    const subtotal = base + addonsTotal;
+    const tax = Math.round(subtotal * 0.08875 * 100) / 100;
+    const total = Math.round((subtotal + tax) * 100) / 100;
+    const n = (plan.type==='full')?1:parseInt(plan.type,10);
+    const apr = Number($('#apr').value||0);
+    let schedule=[];
+    if (n===1) schedule=[total];
+    else if (!apr){
+      const basePay = Math.floor((total/n)*100)/100;
+      schedule = Array.from({length:n},(_,i)=> basePay);
+      const diff = Math.round((total - basePay*n)*100)/100; schedule[n-1]=Math.round((schedule[n-1]+diff)*100)/100;
+    } else {
+      const r=apr/12/100; const pay=Math.round((total*(r*Math.pow(1+r,n))/(Math.pow(1+r,n)-1))*100)/100; schedule=Array.from({length:n},()=>pay);
+    }
+    return { base, addons: addonList, tax, total, schedule };
+  }
+  function restart(){
+    location.reload();
+  }
+  function currency(n){ return n.toLocaleString(undefined,{style:'currency', currency:'USD'}); }
+
+  // init
+  (function init(){
+    document.getElementById('year').textContent = new Date().getFullYear();
+    showStep(1);
+    renderCemeteries();
+    renderSlots();
+    renderAddons();
+    setPlan($('[data-plan="full"]'));
+  })();
+</script>
+</body>
+</html>
