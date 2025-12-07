@@ -1,0 +1,22 @@
+{
+   "name": "server",
+   "type": "module",
+   "private": true,
+   "scripts": {
+      "start": "bun run index.ts",
+      "dev": "bun --watch run index.ts"
+   },
+   "devDependencies": {
+      "@types/bun": "latest"
+   },
+   "peerDependencies": {
+      "typescript": "^5"
+   },
+   "dependencies": {
+      "@types/express": "^5.0.5",
+      "dotenv": "^17.2.3",
+      "express": "^5.1.0",
+      "openai": "^6.8.1",
+      "zod": "^4.1.13"
+   }
+}
